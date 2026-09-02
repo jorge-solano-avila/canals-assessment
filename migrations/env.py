@@ -22,6 +22,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
+from sqlalchemy.sql.schema import SchemaItem
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.config import settings
@@ -39,7 +40,13 @@ target_metadata = Base.metadata
 POSTGIS_OWNED = {"spatial_ref_sys", "geometry_columns", "geography_columns"}
 
 
-def include_object(object_, name, type_, reflected, compare_to):
+def include_object(
+    object_: SchemaItem,
+    name: str | None,
+    type_: str,
+    reflected: bool,
+    compare_to: SchemaItem | None,
+) -> bool:
     if type_ == "table" and name in POSTGIS_OWNED:
         return False
     # GeoAlchemy2 reflects its own spatial indexes; we declare ours explicitly.

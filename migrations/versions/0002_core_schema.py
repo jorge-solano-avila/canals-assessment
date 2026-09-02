@@ -11,6 +11,8 @@ Revision ID: 0002
 Revises: 0001
 """
 
+import uuid
+from datetime import datetime
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -34,7 +36,7 @@ def _point() -> Geography:
     return Geography(geometry_type="POINT", srid=4326, spatial_index=False)
 
 
-def _created_at() -> sa.Column:
+def _created_at() -> sa.Column[datetime]:
     return sa.Column(
         "created_at",
         sa.DateTime(timezone=True),
@@ -43,7 +45,7 @@ def _created_at() -> sa.Column:
     )
 
 
-def _updated_at() -> sa.Column:
+def _updated_at() -> sa.Column[datetime]:
     return sa.Column(
         "updated_at",
         sa.DateTime(timezone=True),
@@ -52,7 +54,7 @@ def _updated_at() -> sa.Column:
     )
 
 
-def _id() -> sa.Column:
+def _id() -> sa.Column[uuid.UUID]:
     return sa.Column(
         "id",
         postgresql.UUID(as_uuid=True),
