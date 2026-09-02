@@ -1,0 +1,16 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+sqlalchemy = {extras = ["asyncio"], version = ">=2.0"}
+asyncpg = "*"
+alembic = "*"
+geoalchemy2 = "*"
+pydantic-settings = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.12"
