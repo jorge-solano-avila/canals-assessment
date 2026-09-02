@@ -8,7 +8,9 @@ docker compose. All code, comments and docs in English.
 ## Architectural decisions — do not deviate
 - Idempotency: `idempotency_keys` table in Postgres.
   INSERT ... ON CONFLICT DO NOTHING, in the SAME transaction as the order.
-  States: in_progress / completed / failed. Redis is NOT involved.
+  State is derived, not stored: `response_status IS NULL` means unsettled, otherwise the
+  stored response is replayed. A definite failure is stored as its own 4xx/5xx response.
+  Redis is NOT involved.
   Store request_hash; return 422 if the same key arrives with a different body.
 - Stock reservation: single atomic conditional UPDATE
   (WHERE on_hand - reserved >= qty ... RETURNING).
