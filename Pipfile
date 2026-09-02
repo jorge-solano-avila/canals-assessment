@@ -8,9 +8,12 @@ sqlalchemy = {extras = ["asyncio"], version = ">=2.0"}
 asyncpg = "*"
 alembic = "*"
 geoalchemy2 = "*"
+pydantic = "*"
 pydantic-settings = "*"
+fastapi = "*"
 
 [dev-packages]
+mypy = "*"
 
 [requires]
 python_version = "3.12"
