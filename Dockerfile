@@ -12,8 +12,11 @@ RUN pip install --no-cache-dir pipenv
 # --system: install into the image's own site-packages rather than nesting a
 #           virtualenv inside an already-isolated container.
 # --deploy: fail the build if Pipfile.lock has drifted from Pipfile.
+# --dev installs [dev-packages] too. This image *is* the development environment
+# for this project — the host runs Python 3.8, so mypy and friends cannot run
+# outside a container. A production build would drop --dev.
 COPY Pipfile Pipfile.lock ./
-RUN pipenv install --system --deploy
+RUN pipenv install --system --deploy --dev
 
 RUN useradd --create-home --uid 1000 appuser
 COPY . .
