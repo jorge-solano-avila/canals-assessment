@@ -16,11 +16,13 @@ on_hand >= reserved invariant.
 """
 
 import asyncio
+from uuid import UUID
 
-from geoalchemy2 import WKTElement
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.geo import to_point
 from app.db.session import Session, engine
 from app.models import Address, Customer, Inventory, Product, Warehouse
 
@@ -71,11 +73,7 @@ ADDRESSES = [
 ]
 
 
-def _point(lon: float, lat: float) -> WKTElement:
-    return WKTElement(f"POINT({lon} {lat})", srid=4326)
-
-
-async def seed_products(session) -> dict[str, str]:
+async def seed_products(session: AsyncSession) -> dict[str, UUID]:
     stmt = insert(Product).values(
         [
             {
@@ -101,10 +99,10 @@ async def seed_products(session) -> dict[str, str]:
     return {sku: pid for sku, pid in rows}
 
 
-async def seed_warehouses(session) -> dict[str, str]:
+async def seed_warehouses(session: AsyncSession) -> dict[str, UUID]:
     stmt = insert(Warehouse).values(
         [
-            {"code": code, "name": name, "location": _point(lon, lat)}
+            {"code": code, "name": name, "location": to_point(lon=lon, lat=lat)}
             for code, name, lon, lat in WAREHOUSES
         ]
     )
@@ -121,7 +119,11 @@ async def seed_warehouses(session) -> dict[str, str]:
     return {code: wid for code, wid in rows}
 
 
-async def seed_inventory(session, products, warehouses) -> None:
+async def seed_inventory(
+    session: AsyncSession,
+    products: dict[str, UUID],
+    warehouses: dict[str, UUID],
+) -> None:
     stmt = insert(Inventory).values(
         [
             {
@@ -142,7 +144,7 @@ async def seed_inventory(session, products, warehouses) -> None:
     await session.execute(stmt)
 
 
-async def seed_customer(session):
+async def seed_customer(session: AsyncSession) -> Customer:
     """No natural unique constraint to upsert against (uniqueness is a functional
     index on lower(email)), so select-then-insert."""
     existing = await session.scalar(
@@ -157,7 +159,7 @@ async def seed_customer(session):
     return customer
 
 
-async def seed_addresses(session, customer) -> None:
+async def seed_addresses(session: AsyncSession, customer: Customer) -> None:
     for line1, city, postal, country, lon, lat in ADDRESSES:
         exists = await session.scalar(
             select(Address.id).where(
@@ -174,7 +176,7 @@ async def seed_addresses(session, customer) -> None:
                 city=city,
                 postal_code=postal,
                 country_code=country,
-                point=_point(lon, lat),
+                point=to_point(lon=lon, lat=lat),
             )
         )
 
