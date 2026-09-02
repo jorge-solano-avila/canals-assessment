@@ -9,7 +9,7 @@ impossible by construction rather than by convention.
 """
 
 import uuid
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     BigInteger,
@@ -45,12 +45,12 @@ class Payment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # against their dashboard later.
     description: Mapped[str] = mapped_column(String, nullable=False)
 
-    card_brand: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    card_last4: Mapped[Optional[str]] = mapped_column(String(4), nullable=True)
+    card_brand: Mapped[str | None] = mapped_column(String, nullable=True)
+    card_last4: Mapped[str | None] = mapped_column(String(4), nullable=True)
 
     provider: Mapped[str] = mapped_column(String, nullable=False)
-    provider_reference: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    failure_reason: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    provider_reference: Mapped[str | None] = mapped_column(String, nullable=True)
+    failure_reason: Mapped[str | None] = mapped_column(String, nullable=True)
 
     order: Mapped["Order"] = relationship(back_populates="payments", lazy="raise")
 

@@ -11,7 +11,7 @@ were never published.
 
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import CheckConstraint, DateTime, Index, Integer, String, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -35,7 +35,7 @@ class OutboxEvent(UUIDPrimaryKeyMixin, Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    processed_at: Mapped[Optional[datetime]] = mapped_column(
+    processed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 

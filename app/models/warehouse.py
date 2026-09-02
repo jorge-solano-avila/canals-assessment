@@ -4,7 +4,7 @@ location is NOT NULL because a warehouse without coordinates can never win that
 ranking, so a row without one would be a silent hole in fulfilment.
 """
 
-from geoalchemy2 import Geography
+from geoalchemy2 import Geography, WKBElement
 from sqlalchemy import Boolean, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -18,7 +18,8 @@ class Warehouse(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
 
     # spatial_index=False -> the GiST index is written explicitly in the migration.
-    location: Mapped[str] = mapped_column(
+    # WKBElement is what a read returns; writes go through app.db.geo.to_point.
+    location: Mapped[WKBElement] = mapped_column(
         Geography(geometry_type="POINT", srid=4326, spatial_index=False),
         nullable=False,
     )

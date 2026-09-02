@@ -14,7 +14,7 @@ them with a time cutoff rather than a stored fact.
 """
 
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -30,14 +30,14 @@ class IdempotencyKey(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     key: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     request_hash: Mapped[str] = mapped_column(String, nullable=False)
 
-    response_body: Mapped[Optional[dict[str, Any]]] = mapped_column(
+    response_body: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB, nullable=True
     )
-    response_status: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    response_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Convenience pointer for replaying a stored response; response_body already
     # holds what gets returned, so losing this on delete is harmless.
-    order_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    order_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("orders.id", ondelete="SET NULL"),
         nullable=True,

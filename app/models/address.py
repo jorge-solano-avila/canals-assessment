@@ -5,9 +5,9 @@ the body and snapshots it onto the order. This is the seeded address book.
 """
 
 import uuid
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
-from geoalchemy2 import Geography
+from geoalchemy2 import Geography, WKBElement
 from sqlalchemy import CheckConstraint, ForeignKey, Index, String, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -27,7 +27,7 @@ class Address(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
     )
     line1: Mapped[str] = mapped_column(String, nullable=False)
-    line2: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    line2: Mapped[str | None] = mapped_column(String, nullable=True)
     city: Mapped[str] = mapped_column(String, nullable=False)
     postal_code: Mapped[str] = mapped_column(String, nullable=False)
     country_code: Mapped[str] = mapped_column(String(2), nullable=False)
@@ -35,7 +35,7 @@ class Address(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # Nullable: geocoding is an external call that can fail or lag, so NOT NULL
     # would block address creation on a third-party service.
     # spatial_index=False -> the GiST index is written explicitly in the migration.
-    point: Mapped[Optional[str]] = mapped_column(
+    point: Mapped[WKBElement | None] = mapped_column(
         Geography(geometry_type="POINT", srid=4326, spatial_index=False),
         nullable=True,
     )

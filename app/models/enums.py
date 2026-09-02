@@ -1,35 +1,28 @@
-"""Native PostgreSQL enum types.
+"""SQLAlchemy bindings for the PostgreSQL enum types.
 
-create_type=False everywhere: the types are created once, explicitly, in migration
-0001 before any table exists. Letting SQLAlchemy create them implicitly would make
-the ordering depend on which table happens to be emitted first.
+The enums themselves live in app/domain/enums.py so that schemas can share them
+without importing anything from the model layer. This module holds only the
+database binding.
+
+create_type=False everywhere: the types were created once, explicitly, in
+migration 0001 before any table existed. Letting SQLAlchemy create them
+implicitly would make the ordering depend on which table is emitted first.
 """
 
 import enum
 
 from sqlalchemy.dialects.postgresql import ENUM
 
+from app.domain.enums import OrderStatus, PaymentStatus, ReservationStatus
 
-class OrderStatus(str, enum.Enum):
-    pending = "pending"
-    reserved = "reserved"
-    paid = "paid"
-    confirmed = "confirmed"
-    payment_failed = "payment_failed"
-    cancelled = "cancelled"
-
-
-class PaymentStatus(str, enum.Enum):
-    pending = "pending"
-    succeeded = "succeeded"
-    failed = "failed"
-
-
-class ReservationStatus(str, enum.Enum):
-    active = "active"
-    committed = "committed"
-    released = "released"
-    expired = "expired"
+__all__ = [
+    "ORDER_STATUS",
+    "PAYMENT_STATUS",
+    "RESERVATION_STATUS",
+    "OrderStatus",
+    "PaymentStatus",
+    "ReservationStatus",
+]
 
 
 def _pg_enum(python_enum: type[enum.Enum], name: str) -> ENUM:

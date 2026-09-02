@@ -7,9 +7,9 @@ order_items.
 """
 
 import uuid
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
-from geoalchemy2 import Geography
+from geoalchemy2 import Geography, WKBElement
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
@@ -45,7 +45,7 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ORDER_STATUS, nullable=False, server_default=text("'pending'")
     )
     # Assigned at reservation time, hence nullable while pending.
-    warehouse_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    warehouse_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("warehouses.id", ondelete="RESTRICT"),
         nullable=True,
@@ -55,14 +55,14 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     total_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
     shipping_line1: Mapped[str] = mapped_column(String, nullable=False)
-    shipping_line2: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    shipping_line2: Mapped[str | None] = mapped_column(String, nullable=True)
     shipping_city: Mapped[str] = mapped_column(String, nullable=False)
     shipping_postal_code: Mapped[str] = mapped_column(String, nullable=False)
     shipping_country_code: Mapped[str] = mapped_column(String(2), nullable=False)
 
     # No GiST index here: this is the *query* point that warehouse selection
     # orders by, not indexed data. The index that matters is warehouses.location.
-    shipping_point: Mapped[Optional[str]] = mapped_column(
+    shipping_point: Mapped[WKBElement | None] = mapped_column(
         Geography(geometry_type="POINT", srid=4326, spatial_index=False),
         nullable=True,
     )
@@ -70,7 +70,7 @@ class Order(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     customer: Mapped["Customer"] = relationship(
         back_populates="orders", lazy="raise"
     )
-    warehouse: Mapped[Optional["Warehouse"]] = relationship(lazy="raise")
+    warehouse: Mapped["Warehouse | None"] = relationship(lazy="raise")
     items: Mapped[list["OrderItem"]] = relationship(
         back_populates="order", lazy="raise"
     )

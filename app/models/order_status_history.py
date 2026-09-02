@@ -14,7 +14,7 @@ itself, so the history can never disagree with orders.status.
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, func
 from sqlalchemy.dialects.postgresql import UUID
@@ -36,11 +36,11 @@ class OrderStatusHistory(UUIDPrimaryKeyMixin, Base):
         nullable=False,
     )
     # NULL on the row recording creation, where there is no previous state.
-    from_status: Mapped[Optional[OrderStatus]] = mapped_column(
+    from_status: Mapped[OrderStatus | None] = mapped_column(
         ORDER_STATUS, nullable=True
     )
     to_status: Mapped[OrderStatus] = mapped_column(ORDER_STATUS, nullable=False)
-    reason: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    reason: Mapped[str | None] = mapped_column(String, nullable=True)
 
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
