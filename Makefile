@@ -5,7 +5,7 @@ COMPOSE ?= docker compose
 -include .env
 export
 
-.PHONY: up down migrate seed psql logs lock revision reset
+.PHONY: up down migrate seed psql logs lock revision reset test test-up
 
 up:                ## Build and start db, redis and app
 	$(COMPOSE) up -d --build
@@ -34,3 +34,9 @@ revision:          ## Autogenerate a migration: make revision m="add thing"
 
 reset:             ## DESTRUCTIVE: stop and delete the pgdata volume
 	$(COMPOSE) down -v
+
+test-up:           ## Start db-test and app, blocking until healthy
+	$(COMPOSE) up -d --wait db-test app
+
+test: test-up      ## Run the test suite against db-test
+	$(COMPOSE) exec -T app pytest
