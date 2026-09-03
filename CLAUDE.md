@@ -6,7 +6,13 @@ charges a payment provider. Single endpoint: POST /orders.
 ## Stack (fixed — do not propose alternatives)
 Python 3.12, FastAPI, SQLAlchemy 2.0 (async), asyncpg, Alembic,
 PostgreSQL + PostGIS, GeoAlchemy2, Redis (geocoding cache only),
-pytest + testcontainers, docker compose.
+pytest + a dedicated `db-test` compose service (real PostgreSQL + PostGIS),
+docker compose.
+  Amended from "testcontainers": tests run inside the app container, because the
+  host is Python 3.8. testcontainers from inside a container needs
+  /var/run/docker.sock bind-mounted to spawn a sibling, then must reach it by
+  container IP — a real privilege escalation and fiddly networking, in exchange
+  for isolation a second compose service already provides.
 All code, comments, docs and commit messages in English.
 
 ## Project structure
@@ -81,7 +87,7 @@ cancelled payment_failed (compensate: release reservation)
 - `order_items` snapshots unit_price at purchase time — never join back to
   products.
 - CHECK constraints: quantity > 0, on_hand >= reserved, reserved >= 0.
-- Foreign keys everywhere with deliberate ON DELETE behaviour.
+- Foreign keys everywhere with deliberate ON DELETE behavior.
 - `stock_reservations.expires_at` plus a sweeper job for expired holds.
 - Transactional outbox for the order_confirmed event.
 
@@ -94,8 +100,8 @@ cancelled payment_failed (compensate: release reservation)
 
 ### Validation and secrets
 - Pydantic v2, separate module tree from the models. No SQLModel-style merging.
-- Card number: Luhn check + length + normalisation, as SecretStr, excluded
-  from repr and serialisation. Never logged.
+- Card number: Luhn check + length + normalization, as SecretStr, excluded
+  from repr and serialization. Never logged.
 - Domain exceptions in domain/, mapped to HTTP codes in api/.
 - Consistent error response shape for every non-2xx.
 
