@@ -25,6 +25,22 @@ class Settings(BaseSettings):
     app_env: str = "local"
     sql_echo: bool = False
     reservation_ttl_seconds: int = 900
+    geocode_cache_ttl_seconds: int = 7 * 24 * 3600
+
+    # Points at the db-test compose service. Only the test fixtures read it.
+    postgres_test_host: str = "db-test"
+    postgres_test_db: str = "canals_test"
+
+    @property
+    def redis_url(self) -> str:
+        return f"redis://{self.redis_host}:{self.redis_port}/0"
+
+    @property
+    def test_database_url(self) -> str:
+        return (
+            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+            f"@{self.postgres_test_host}:{self.postgres_port}/{self.postgres_test_db}"
+        )
 
     @property
     def database_url(self) -> str:
