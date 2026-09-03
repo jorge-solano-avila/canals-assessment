@@ -5,7 +5,7 @@ COMPOSE ?= docker compose
 -include .env
 export
 
-.PHONY: up down migrate seed psql logs lock revision reset test test-up
+.PHONY: up down migrate seed psql logs lock revision reset test test-up sweep
 
 up:                ## Build and start db, redis and app
 	$(COMPOSE) up -d --build
@@ -34,6 +34,9 @@ revision:          ## Autogenerate a migration: make revision m="add thing"
 
 reset:             ## DESTRUCTIVE: stop and delete the pgdata volume
 	$(COMPOSE) down -v
+
+sweep:             ## Release expired stock reservations (run on demand or from cron)
+	$(COMPOSE) exec -T app python -m app.jobs.sweep_reservations
 
 test-up:           ## Start db-test and app, blocking until healthy
 	$(COMPOSE) up -d --wait db-test app
