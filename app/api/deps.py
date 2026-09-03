@@ -31,6 +31,7 @@ from app.adapters.geocoding_mock import MockGeocoder
 from app.config import settings
 from app.db.session import Session
 from app.ports.geocoding import GeocodingProvider
+from app.services.order_creation import OrderCreationService
 from app.services.warehouse_selection import WarehouseSelectionService
 
 
@@ -89,4 +90,16 @@ async def get_warehouse_selection_service(
 
 WarehouseSelectionDep = Annotated[
     WarehouseSelectionService, Depends(get_warehouse_selection_service)
+]
+
+
+async def get_order_creation_service(
+    session: SessionDep,
+    geocoder: GeocoderDep,
+) -> OrderCreationService:
+    return OrderCreationService(session=session, geocoder=geocoder)
+
+
+OrderCreationDep = Annotated[
+    OrderCreationService, Depends(get_order_creation_service)
 ]
