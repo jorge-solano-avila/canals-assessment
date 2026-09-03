@@ -11,9 +11,13 @@ geoalchemy2 = "*"
 pydantic = "*"
 pydantic-settings = "*"
 fastapi = "*"
+redis = "*"
 
 [dev-packages]
 mypy = "*"
+pytest = "*"
+pytest-asyncio = "*"
+pytest-cov = "*"
 
 [requires]
 python_version = "3.12"
