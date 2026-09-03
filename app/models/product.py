@@ -1,4 +1,4 @@
-"""The sellable catalogue: what can be ordered and what it costs *today*.
+"""The sellable catalog: what can be ordered and what it costs *today*.
 
 It never answers "what did this order charge" — that is order_items. The separation
 is what stops a price change from rewriting history.

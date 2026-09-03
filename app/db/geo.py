@@ -5,7 +5,7 @@ coordinates as IEEE 754 double precision: a 22-digit longitude round-trips as
 -3.70381234567890123456 -> -3.703812345678901, so Decimal would promise an
 exactness the column discards on write. (Money is the opposite case, which is why
 every amount in this schema is an integer count of minor units.) Seven decimal
-places is roughly a centimetre; float64 gives about thirteen at this magnitude.
+places is roughly a centimeter; float64 gives about thirteen at this magnitude.
 """
 
 from typing import cast

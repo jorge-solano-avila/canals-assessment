@@ -1,7 +1,7 @@
-"""Physical fulfilment locations — the candidate set ranked by PostGIS distance.
+"""Physical fulfillment locations — the candidate set ranked by PostGIS distance.
 
 location is NOT NULL because a warehouse without coordinates can never win that
-ranking, so a row without one would be a silent hole in fulfilment.
+ranking, so a row without one would be a silent hole in fulfillment.
 """
 
 from geoalchemy2 import Geography, WKBElement

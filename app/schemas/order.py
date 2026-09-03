@@ -40,13 +40,13 @@ class ShippingAddressIn(BaseModel):
         min_length=2,
         max_length=2,
         pattern=r"^[A-Za-z]{2}$",
-        description="ISO 3166-1 alpha-2; normalised to upper case.",
+        description="ISO 3166-1 alpha-2; normalized to upper case.",
     )
 
     @field_validator("country_code")
     @classmethod
     def _upper(cls, v: str) -> str:
-        # The DB CHECK is ^[A-Z]{2}$, so normalise rather than reject 'es'.
+        # The DB CHECK is ^[A-Z]{2}$, so normalize rather than reject 'es'.
         return v.upper()
 
 
