@@ -1,0 +1,52 @@
+# Tool configuration only — this is not a package definition. pipenv still owns
+# dependency management via Pipfile / Pipfile.lock.
+#
+# mypy's config lives here rather than in mypy.ini, which phase 2 chose only
+# because no pyproject.toml existed. It does now, and one tool-config file beats
+# two.
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+show_error_codes = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+addopts = """
+    --cov
+    --cov-report=term-missing
+    --cov-report=xml
+    --cov-fail-under=80
+"""
+
+[tool.coverage.run]
+# Scoped to the layers that hold logic. app/models and app/schemas are
+# declarations: covering them measures whether SQLAlchemy and Pydantic work.
+# 80 is a floor, not a target — no test exists purely to move this number.
+source = [
+    "app/services",
+    "app/repositories",
+    "app/adapters",
+    "app/domain",
+    "app/ports",
+]
+branch = true
+omit = [
+    "*/migrations/*",
+    "*/seeds.py",
+    "*/config.py",
+    "*/db/session.py",
+    "*/__init__.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",           # Protocol method bodies
+]
