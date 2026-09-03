@@ -26,7 +26,7 @@ from app.db.base import Base
 from app.db.geo import to_point
 from app.domain.geo import Coordinates
 from app.domain.selection import RequestedItem
-from app.models import Inventory, Product, Warehouse
+from app.models import Customer, Inventory, Product, Warehouse
 
 TEST_URL = settings.test_database_url
 
@@ -69,6 +69,19 @@ async def engine(_migrated: None) -> AsyncIterator[AsyncEngine]:
         yield eng
     finally:
         await eng.dispose()
+
+
+@pytest.fixture
+def session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    """A maker over the NullPool engine, so every session opened from it gets a
+    genuinely separate connection.
+
+    This is what the concurrency tests need. A shared session fixture pins every
+    coroutine to ONE connection, where uncommitted rows are invisible to the
+    others and row locks cannot contend — the race under test would simply not
+    happen, and the test would pass while proving nothing.
+    """
+    return async_sessionmaker(engine, expire_on_commit=False)
 
 
 @pytest.fixture
@@ -143,3 +156,10 @@ async def make_stock(
 
 def items(*pairs: tuple[UUID, int]) -> list[RequestedItem]:
     return [RequestedItem(product_id=pid, quantity=qty) for pid, qty in pairs]
+
+
+async def make_customer(session: AsyncSession, email: str = "ada@example.com") -> Customer:
+    customer = Customer(email=email, full_name="Ada Lovelace")
+    session.add(customer)
+    await session.flush()
+    return customer
