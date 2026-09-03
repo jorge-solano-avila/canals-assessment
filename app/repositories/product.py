@@ -27,3 +27,17 @@ class ProductRepository:
             select(Product.id).where(Product.id.in_(list(product_ids)))
         )
         return frozenset(rows)
+
+    async def get_by_ids(self, product_ids: Collection[UUID]) -> dict[UUID, Product]:
+        """Fetch products for snapshotting onto order lines.
+
+        Returns a mapping so the caller can look up by id without a second scan.
+        Callers reach this only after selection has already verified existence,
+        so a short result would be a bug, not an expected outcome.
+        """
+        if not product_ids:
+            return {}
+        rows = await self._session.scalars(
+            select(Product).where(Product.id.in_(list(product_ids)))
+        )
+        return {p.id: p for p in rows}
