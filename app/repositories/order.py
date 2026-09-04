@@ -19,6 +19,7 @@ from uuid import UUID
 
 from geoalchemy2 import WKBElement
 from sqlalchemy import func, select, update
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.address import PostalAddress
@@ -154,3 +155,20 @@ class OrderRepository:
             )
         )
         await self._session.flush()
+
+    async def get_for_response(self, order_id: UUID) -> Order:
+        """Load an order with everything the response needs, eagerly.
+
+        Every relationship is lazy="raise", so this MUST specify what it needs
+        or serialisation blows up. That is the setting working as intended: a
+        silent N+1 becomes a loud error at the one place that knows what it is
+        about to render.
+        """
+        order = await self._session.scalar(
+            select(Order)
+            .where(Order.id == order_id)
+            .options(selectinload(Order.items), joinedload(Order.warehouse))
+        )
+        if order is None:  # pragma: no cover - caller just created it
+            raise LookupError(f"order {order_id} vanished")
+        return order

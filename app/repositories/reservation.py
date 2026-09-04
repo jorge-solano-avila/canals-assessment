@@ -154,6 +154,28 @@ class ReservationRepository:
             .values(status=ReservationStatus.released, released_at=func.now()),
         )
 
+    async def settle_for_order(
+        self, *, order_id: UUID, status: ReservationStatus
+    ) -> None:
+        """Move an order's active holds to a terminal state WITHOUT returning
+        stock to inventory.
+
+        Used on confirmation: the hold becomes a sale, so `reserved` stays where
+        it is — the units left the warehouse. Contrast release_reservation,
+        which decrements. released_at is set because the phase-1 CHECK requires
+        it for any non-active status; the column means "stopped holding", not
+        strictly "was released".
+        """
+        await self._session.execute(
+            update(StockReservation)
+            .where(
+                StockReservation.order_id == order_id,
+                StockReservation.status == ReservationStatus.active,
+            )
+            .values(status=status, released_at=func.now())
+        )
+        await self._session.flush()
+
     async def sweep_expired(self, *, batch_size: int = 500) -> list[ReleasedItem]:
         """Release reservations whose hold has expired.
 
