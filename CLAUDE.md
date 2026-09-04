@@ -5,9 +5,13 @@ charges a payment provider. Single endpoint: POST /orders.
 
 ## Stack (fixed — do not propose alternatives)
 Python 3.12, FastAPI, SQLAlchemy 2.0 (async), asyncpg, Alembic,
-PostgreSQL + PostGIS, GeoAlchemy2, Redis (geocoding cache only),
+PostgreSQL + PostGIS, GeoAlchemy2,
 pytest + a dedicated `db-test` compose service (real PostgreSQL + PostGIS),
 docker compose.
+  Amended: Redis was dropped. It was specified as a geocoding cache only, but the
+  geocoder is an in-process mock, so the cache saved nothing and cost a service,
+  a port, an adapter and a degradation path. Reinstate it when geocoding becomes
+  a real network call.
   Amended from "testcontainers": tests run inside the app container, because the
   host is Python 3.8. testcontainers from inside a container needs
   /var/run/docker.sock bind-mounted to spawn a sibling, then must reach it by
@@ -22,7 +26,7 @@ api/ FastAPI routes, dependencies, exception handlers
 services/ orchestration: state machine, saga, idempotency
 repositories/ SQLAlchemy data access
 ports/ Protocol definitions (GeocodingProvider, PaymentProvider)
-adapters/ Mock and Redis implementations of the ports
+adapters/ Mock implementations of the ports
 models/ SQLAlchemy tables
 schemas/ Pydantic request/response
 domain/ domain exceptions and result types

@@ -36,13 +36,12 @@ docker --version && docker compose version && make --version | head -1
 
 - **~2 GB of disk** for the images (`postgis/postgis:16-3.4` is the large one) and **~1 GB of RAM**
   while running.
-- **Four host ports must be free**, or changed in `.env` — see [§7 Troubleshooting](#7-troubleshooting):
+- **Three host ports must be free**, or changed in `.env` — see [§7 Troubleshooting](#7-troubleshooting):
 
   | Port | Service | `.env` variable |
   |---|---|---|
   | 5432 | PostgreSQL + PostGIS | `POSTGRES_HOST_PORT` |
   | 55433 | test database | `POSTGRES_TEST_HOST_PORT` |
-  | 6379 | Redis | `REDIS_HOST_PORT` |
   | 8000 | the API | `APP_HOST_PORT` |
 
 - **Your Docker daemon must be running.** `docker info` should succeed before you start.
@@ -55,12 +54,12 @@ Four commands from a fresh clone:
 
 ```bash
 cp .env.example .env     # 1. create your local config
-make up                  # 2. build the image, start db / db-test / redis / app
+make up                  # 2. build the image, start db / db-test / app
 make migrate             # 3. create the schema (Alembic; never create_all)
 make seed                # 4. load products, warehouses, inventory, a customer
 ```
 
-`make up` takes a few minutes the first time — it pulls PostGIS and Redis and builds the app image.
+`make up` takes a few minutes the first time — it pulls PostGIS and builds the app image.
 Afterwards it is seconds.
 
 **Expected output from `make seed`:**
@@ -75,7 +74,7 @@ Confirm everything is healthy:
 docker compose ps
 ```
 
-`db`, `db-test` and `redis` should all say `(healthy)`.
+`db` and `db-test` should both say `(healthy)`.
 
 ### What the four commands do
 
@@ -103,7 +102,7 @@ Serves on the port in `APP_HOST_PORT` (8000 by default), with auto-reload. Then:
 
 ```bash
 curl -s localhost:8000/health
-# {"status":"ok","checks":{"database":"ok","redis":"ok"}}
+# {"status":"ok","checks":{"database":"ok"}}
 ```
 
 `make run` holds the terminal. Open a second one for the commands below, or run the API detached:
@@ -213,7 +212,7 @@ make            # (no default target; the list below is the whole interface)
 
 | Command | What it does |
 |---|---|
-| `make up` | build and start `db`, `db-test`, `redis`, `app` |
+| `make up` | build and start `db`, `db-test`, `app` |
 | `make down` | stop everything, **keeping** the database volume |
 | `make migrate` | apply migrations to head |
 | `make seed` | load reference data (idempotent) |
@@ -294,7 +293,7 @@ app/
   services/     orchestration — imports ports, never adapters, no FastAPI
   repositories/ SQLAlchemy data access; receives a session, never commits
   ports/        Protocols: GeocodingProvider, PaymentProvider, EventPublisher
-  adapters/     mock and Redis implementations of those ports
+  adapters/     mock implementations of those ports
   models/       SQLAlchemy tables
   schemas/      Pydantic request/response
   domain/       enums, errors, value objects, the state machine
@@ -373,5 +372,8 @@ Deliberately out of scope, and stated rather than hidden:
 - **Management APIs** for customers, products or warehouses — the brief excludes them, which is why
   `make seed` is the only way reference data enters the database.
 
-A persistently unavailable Redis degrades silently to uncached geocoding — the only signal is a
-warning log line, since the request path is designed to survive it.
+**Redis was specified and then removed.** The brief's stack listed it as a geocoding cache, but the
+geocoder is an in-process mock — the cache saved nothing and cost a service, a port, an adapter and
+a degradation path to maintain. It belongs back the moment geocoding becomes a real network call,
+and the `GeocodingProvider` port is the seam where a caching decorator would slot in. The removal is
+recorded in `CLAUDE.md` alongside the project's other deliberate amendments.

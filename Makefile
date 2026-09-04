@@ -7,7 +7,7 @@ export
 
 .PHONY: up down migrate seed psql logs lock revision reset test test-up sweep run outbox
 
-up:                ## Build and start db, redis and app
+up:                ## Build and start db, db-test and app
 	$(COMPOSE) up -d --build
 
 down:              ## Stop everything, keeping the pgdata volume
