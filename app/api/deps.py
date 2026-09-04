@@ -23,11 +23,9 @@ from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends
-from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.event_log import LoggingEventPublisher
-from app.adapters.geocoding_cache import CachedGeocoder
 from app.adapters.geocoding_mock import MockGeocoder
 from app.adapters.payment_mock import MockPaymentProvider
 from app.config import settings
@@ -49,38 +47,15 @@ async def get_session() -> AsyncIterator[AsyncSession]:
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
-async def get_redis() -> AsyncIterator[Redis]:
-    """One Redis client per request.
+async def get_geocoder() -> GeocodingProvider:
+    """The mock geocoding provider.
 
-    Constructed even when Redis is down: the client connects lazily and
-    CachedGeocoder treats every failure as a cache miss, so an unreachable
-    Redis never prevents a request from being served.
+    The only place a concrete geocoder is named; services depend on the port.
+    Swapping in a real provider is a change to this function, and that is when a
+    cache would start to earn its keep — with an in-process mock there is
+    nothing to cache.
     """
-    client: Redis = Redis.from_url(
-        settings.redis_url,
-        socket_connect_timeout=0.25,
-        socket_timeout=0.25,
-    )
-    try:
-        yield client
-    finally:
-        await client.aclose()
-
-
-RedisDep = Annotated[Redis, Depends(get_redis)]
-
-
-async def get_geocoder(redis: RedisDep) -> GeocodingProvider:
-    """The mock provider behind the Redis cache.
-
-    Swapping the implementation is a change to this one function, or a
-    dependency_overrides entry in a test.
-    """
-    return CachedGeocoder(
-        inner=MockGeocoder(),
-        redis=redis,
-        ttl_seconds=settings.geocode_cache_ttl_seconds,
-    )
+    return MockGeocoder()
 
 
 GeocoderDep = Annotated[GeocodingProvider, Depends(get_geocoder)]

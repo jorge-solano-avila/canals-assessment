@@ -19,21 +19,13 @@ class Settings(BaseSettings):
     postgres_host: str = "db"
     postgres_port: int = 5432
 
-    redis_host: str = "redis"
-    redis_port: int = 6379
-
     app_env: str = "local"
     sql_echo: bool = False
     reservation_ttl_seconds: int = 900
-    geocode_cache_ttl_seconds: int = 7 * 24 * 3600
 
     # Points at the db-test compose service. Only the test fixtures read it.
     postgres_test_host: str = "db-test"
     postgres_test_db: str = "canals_test"
-
-    @property
-    def redis_url(self) -> str:
-        return f"redis://{self.redis_host}:{self.redis_port}/0"
 
     @property
     def test_database_url(self) -> str:

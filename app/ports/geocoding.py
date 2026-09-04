@@ -1,7 +1,7 @@
 """The geocoding port.
 
 Services depend on this Protocol; adapters implement it. Nothing here knows
-about HTTP, Redis, or any particular provider.
+about HTTP, caching, or any particular provider.
 """
 
 from typing import Protocol

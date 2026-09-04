@@ -5,7 +5,9 @@ transaction as the order insert. That is what makes the key and the order atomic
 with each other: a key can never exist for an order that was rolled back, and an
 order can never exist without its key.
 
-Redis plays no part in any of this. It is only the geocoding cache.
+Idempotency lives entirely in PostgreSQL: the same transaction that inserts
+the order inserts the key, which is what makes them atomic with each other.
+No external store is involved, and none could provide that guarantee.
 """
 
 import hashlib

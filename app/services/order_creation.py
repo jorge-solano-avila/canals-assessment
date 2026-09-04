@@ -22,10 +22,10 @@ implicitly and make an explicit session.begin() afterwards raise "a transaction
 is already begun". Including them is also harmless — plain SELECTs take no row
 locks, so nothing is blocked by their being in scope.
 
-The selection service geocodes internally as well. That second call is a cache
-hit (CachedGeocoder) or free (MockGeocoder in tests), which is why the expensive
-one is hoisted out here. If geocoding ever became an uncached network call,
-selection should return the point it resolved rather than being asked twice.
+The selection service geocodes internally as well. With the in-process mock that
+second call is free, which is why hoisting the first one out costs nothing today.
+If geocoding ever became a real network call, selection should return the point
+it resolved rather than being asked twice.
 
 The statement order is inverted from the obvious reading of "reserve then
 insert the order": stock_reservations.order_id references orders.id, so the
