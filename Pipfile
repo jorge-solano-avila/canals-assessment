@@ -12,12 +12,14 @@ pydantic = "*"
 pydantic-settings = "*"
 fastapi = "*"
 redis = "*"
+uvicorn = {extras = ["standard"], version = "*"}
 
 [dev-packages]
 mypy = "*"
 pytest = "*"
 pytest-asyncio = "*"
 pytest-cov = "*"
+httpx = "*"
 
 [requires]
 python_version = "3.12"
