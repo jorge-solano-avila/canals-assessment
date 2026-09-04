@@ -9,7 +9,48 @@ One endpoint: **`POST /orders`**.
 
 ---
 
-## 1. Prerequisites
+## 1. Scope and trade-offs
+
+The brief asked for one endpoint, and said the functionality should be **production-ready**, with
+data storage treated *"with the same rigor you would in a high-traffic production system."* That
+sentence drove most of what is here.
+
+**What that rigor actually demanded.** These are not embellishments — omitting any of them would be
+a defect in a system that takes money:
+
+- **Atomic stock reservation.** One conditional `UPDATE`, never read-check-write. Two customers
+  racing for the last unit is the normal case at high traffic, not an edge case.
+- **Idempotency on the endpoint.** A payment endpoint without it double-charges people the first
+  time a client retries a timeout.
+- **The payment call outside any transaction.** Otherwise a slow provider holds row locks on
+  `inventory` for the length of a network call.
+- **No card number stored or logged**, money as integer minor units, prices snapshotted onto order
+  lines, CHECK constraints and deliberate `ON DELETE` behavior throughout.
+
+**What goes beyond the brief, deliberately.** Named here rather than left for you to find:
+
+| Extension | Why it is here | Honest status |
+|---|---|---|
+| **Transactional outbox** | The order confirmation and its event must commit together; writing to a broker inside a transaction is the classic dual-write bug | **The weakest justification.** Nothing consumes the events yet. First thing I would cut. |
+| **`order_status_history`** | `orders.status` says where an order *is*, not how it got there — needed to answer "how long did the charge take" | Useful, not requested |
+| **Reservation expiry + sweeper** | Stock is held across a payment call; something must return it if the request dies | Follows necessarily from holding stock |
+| **Reconciliation skeleton** | A provider timeout leaves the outcome genuinely unknown; something must ask later | State and query ship; the loop does not |
+
+**What I built and then removed.** Redis was in the specified stack as a geocoding cache. The
+geocoder is an in-process mock, so the cache saved nothing and cost a service, a port, an adapter
+and a degradation path. It came out — see [§9](#9-not-included).
+
+**What I did not build**, because the brief excludes it or the work does not justify itself yet:
+management APIs for customers/products/warehouses, authentication, rate limiting, retries against
+the payment provider, a real message broker, and the full reconciliation loop.
+
+**About 2,600 lines of application code** across 12 tables and 33 tests. If that reads as a lot
+for one endpoint, the answer is in the first paragraph — and the parts I would remove first are
+named above.
+
+---
+
+## 2. Prerequisites
 
 **You do not need Python installed.** Everything — the app, migrations, seeds, tests, even
 dependency locking — runs inside containers. This is deliberate: the project targets Python 3.12,
@@ -36,7 +77,7 @@ docker --version && docker compose version && make --version | head -1
 
 - **~2 GB of disk** for the images (`postgis/postgis:16-3.4` is the large one) and **~1 GB of RAM**
   while running.
-- **Three host ports must be free**, or changed in `.env` — see [§7 Troubleshooting](#7-troubleshooting):
+- **Three host ports must be free**, or changed in `.env` — see [§8 Troubleshooting](#8-troubleshooting):
 
   | Port | Service | `.env` variable |
   |---|---|---|
@@ -48,7 +89,7 @@ docker --version && docker compose version && make --version | head -1
 
 ---
 
-## 2. Setup
+## 3. Setup
 
 Four commands from a fresh clone:
 
@@ -89,7 +130,7 @@ docker compose ps
 
 ---
 
-## 3. Run it
+## 4. Run it
 
 ```bash
 make run
@@ -164,7 +205,7 @@ results.
 | `4000000000000119` | provider error | `502`, same as timeout |
 
 The timeout case is the interesting one: the outcome is *unknown*, not failed, so releasing the
-stock would risk losing the order of a customer who was actually charged. See [§6](#6-design-notes).
+stock would risk losing the order of a customer who was actually charged. See [§7](#7-design-notes).
 
 ### Things worth trying
 
@@ -178,7 +219,7 @@ stock would risk losing the order of a customer who was actually charged. See [�
 
 ---
 
-## 4. Testing
+## 5. Testing
 
 ```bash
 make test
@@ -204,7 +245,7 @@ The test database uses `tmpfs`, so it is fast and starts clean on every restart.
 
 ---
 
-## 5. Commands
+## 6. Commands
 
 ```bash
 make            # (no default target; the list below is the whole interface)
@@ -243,7 +284,7 @@ workers exist, and cannot take the API down with them.
 
 ---
 
-## 6. Design notes
+## 7. Design notes
 
 The interesting decisions, with the reasoning in the code rather than here.
 
@@ -305,7 +346,7 @@ tests/          real PostgreSQL, truncation between tests
 
 ---
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 **A port is already in use** — the most common problem. `make up` fails with
 `bind: address already in use`. Find the culprit and change the matching variable in `.env`:
@@ -359,7 +400,7 @@ make reset && make up && make migrate && make seed
 
 ---
 
-## 8. Not included
+## 9. Not included
 
 Deliberately out of scope, and stated rather than hidden:
 
