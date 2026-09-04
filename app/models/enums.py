@@ -13,12 +13,19 @@ import enum
 
 from sqlalchemy.dialects.postgresql import ENUM
 
-from app.domain.enums import OrderStatus, PaymentStatus, ReservationStatus
+from app.domain.enums import (
+    IdempotencyStatus,
+    OrderStatus,
+    PaymentStatus,
+    ReservationStatus,
+)
 
 __all__ = [
+    "IDEMPOTENCY_STATUS",
     "ORDER_STATUS",
     "PAYMENT_STATUS",
     "RESERVATION_STATUS",
+    "IdempotencyStatus",
     "OrderStatus",
     "PaymentStatus",
     "ReservationStatus",
@@ -37,3 +44,4 @@ def _pg_enum(python_enum: type[enum.Enum], name: str) -> ENUM:
 ORDER_STATUS = _pg_enum(OrderStatus, "order_status")
 PAYMENT_STATUS = _pg_enum(PaymentStatus, "payment_status")
 RESERVATION_STATUS = _pg_enum(ReservationStatus, "reservation_status")
+IDEMPOTENCY_STATUS = _pg_enum(IdempotencyStatus, "idempotency_status")
