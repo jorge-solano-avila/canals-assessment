@@ -305,16 +305,11 @@ async def test_card_number_never_reaches_the_logs(
     assert "4242" in haystack
 
 
-async def test_health_reports_dependencies_separately(api: Any) -> None:
-    """Postgres is fatal; Redis is only degraded."""
+async def test_health_reports_the_database(api: Any) -> None:
+    """PostgreSQL is the only dependency, and it is required."""
     client, _ = api
 
     r = await client.get("/health")
 
     assert r.status_code == 200
-    payload = r.json()
-    assert payload["checks"]["database"] == "ok"
-    # Redis is genuinely unreachable from the test container's settings or it is
-    # up; either way the service is not 503 on its account.
-    assert payload["status"] in {"ok", "degraded"}
-    assert r.status_code != 503
+    assert r.json() == {"status": "ok", "checks": {"database": "ok"}}

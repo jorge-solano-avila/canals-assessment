@@ -1,52 +1,30 @@
-"""GET /health — dependency checks, reported separately.
+"""GET /health — dependency check.
 
-The two dependencies are NOT equal, and the response reflects that:
-
-  Postgres unreachable -> 503. Nothing works without it.
-  Redis unreachable    -> 200, degraded. Redis is only the geocoding cache, and
-                          phase 3 proved (with a test) that the request path
-                          survives without it. Returning 503 would pull a
-                          working instance out of a load balancer for a
-                          degradation that costs nothing but a cache miss.
+PostgreSQL is the only external dependency, and the service cannot do anything
+without it, so an unreachable database is a 503 rather than a degraded state.
+The check itself is a plain `SELECT 1`: it proves the connection pool can hand
+out a working connection, which is what a load balancer actually needs to know.
 """
 
 from typing import Any
 
 from fastapi import APIRouter, Response, status
-from redis.exceptions import RedisError
 from sqlalchemy import text
 
-from app.api.deps import RedisDep, SessionDep
+from app.api.deps import SessionDep
 
 router = APIRouter(tags=["ops"])
 
 
 @router.get("/health")
-async def health(
-    response: Response,
-    session: SessionDep,
-    redis: RedisDep,
-) -> dict[str, Any]:
-    checks: dict[str, str] = {}
-
+async def health(response: Response, session: SessionDep) -> dict[str, Any]:
     try:
         await session.execute(text("SELECT 1"))
-        checks["database"] = "ok"
-    except Exception:
-        checks["database"] = "unavailable"
-
-    try:
-        await redis.ping()
-        checks["redis"] = "ok"
-    except (RedisError, OSError, TimeoutError):
-        checks["redis"] = "unavailable"
-
-    if checks["database"] != "ok":
-        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-        overall = "unhealthy"
-    elif checks["redis"] != "ok":
-        overall = "degraded"
-    else:
+        checks = {"database": "ok"}
         overall = "ok"
+    except Exception:
+        checks = {"database": "unavailable"}
+        overall = "unhealthy"
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
 
     return {"status": overall, "checks": checks}

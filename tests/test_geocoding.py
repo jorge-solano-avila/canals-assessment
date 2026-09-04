@@ -1,23 +1,15 @@
-"""Geocoding determinism and cache degradation.
+"""Geocoding determinism.
 
-These two properties are the reason the mock and the cache exist at all: a
-reviewer re-running the suite must get identical coordinates, and a dead Redis
-must not fail a request.
+The property that matters: a reviewer re-running the suite must get identical
+coordinates, in this process and in any other.
 """
 
-import logging
 
 import pytest
-from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters.geocoding_cache import CachedGeocoder
 from app.adapters.geocoding_mock import MockGeocoder
 from app.domain.address import PostalAddress
 from app.domain.errors import GeocodingFailed
-from app.domain.geo import Coordinates
-from app.services.warehouse_selection import WarehouseSelectionService
-from tests.conftest import items, make_product, make_stock, make_warehouse
 
 KNOWN = PostalAddress(
     line1="Calle de Alcala 45", city="Madrid", postal_code="28014", country_code="ES"
@@ -82,59 +74,12 @@ async def test_empty_city_raises_geocoding_failed() -> None:
         )
 
 
-async def test_selection_succeeds_when_redis_is_unavailable(
-    session: AsyncSession,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """A dead cache degrades to uncached geocoding; it never fails the request."""
-    product = await make_product(session, "SKU-KEYB")
-    warehouse = await make_warehouse(session, "MAD-01", at=Coordinates(lat=40.4168, lon=-3.7038))
-    await make_stock(session, warehouse, product, on_hand=10)
-    await session.commit()
+def test_line2_is_excluded_from_the_normalized_key() -> None:
+    """An apartment number does not move the building.
 
-    # Port 1 is closed; every Redis call will fail.
-    dead = Redis.from_url(
-        "redis://127.0.0.1:1/0", socket_connect_timeout=0.1, socket_timeout=0.1
-    )
-    geocoder = CachedGeocoder(inner=MockGeocoder(), redis=dead, ttl_seconds=60)
-
-    svc = WarehouseSelectionService(session=session, geocoder=geocoder)
-    with caplog.at_level(logging.WARNING):
-        chosen = await svc.select(KNOWN, items((product.id, 1)))
-
-    assert chosen.code == "MAD-01"
-    assert any("cache unavailable" in r.message for r in caplog.records)
-    await dead.aclose()
-
-
-async def test_cache_returns_stored_value_and_survives_corruption() -> None:
-    """A hit is served from Redis; unreadable content falls through, not fails."""
-
-    class _FakeRedis:
-        def __init__(self) -> None:
-            self.store: dict[str, str] = {}
-
-        async def get(self, key: str) -> str | None:
-            return self.store.get(key)
-
-        async def set(self, key: str, value: str, ex: int | None = None) -> None:
-            self.store[key] = value
-
-    fake = _FakeRedis()
-    geocoder = CachedGeocoder(inner=MockGeocoder(), redis=fake, ttl_seconds=60)  # type: ignore[arg-type]
-
-    first = await geocoder.geocode(KNOWN)
-    assert len(fake.store) == 1
-    assert await geocoder.geocode(KNOWN) == first  # served from cache
-
-    # Corrupt the entry: the adapter must fall through, not raise.
-    key = next(iter(fake.store))
-    fake.store[key] = "not json"
-    assert await geocoder.geocode(KNOWN) == first
-
-
-def test_line2_is_excluded_from_the_cache_key() -> None:
-    """An apartment number does not move the building."""
+    The normalized key is what the geocoder hashes for its deterministic
+    fallback, so two addresses differing only by floor resolve identically.
+    """
     base = PostalAddress(
         line1="Calle de Alcala 45", city="Madrid", postal_code="28014", country_code="ES"
     )
