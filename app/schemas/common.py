@@ -18,6 +18,8 @@ class ErrorCode(str, enum.Enum):
     no_warehouse_available = "no_warehouse_available"
     insufficient_stock = "insufficient_stock"
     payment_declined = "payment_declined"
+    payment_unresolved = "payment_unresolved"
+    geocoding_failed = "geocoding_failed"
     idempotency_key_conflict = "idempotency_key_conflict"
     idempotency_in_progress = "idempotency_in_progress"
     internal_error = "internal_error"
