@@ -45,6 +45,7 @@ import logging
 from collections.abc import Sequence
 from uuid import UUID
 
+from geoalchemy2 import WKBElement
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.geo import to_point
@@ -94,52 +95,75 @@ class OrderCreationService:
         shipping_point = to_point(lon=coordinates.lon, lat=coordinates.lat)
 
         async with self._session.begin():
-            # Selection also validates that every product exists, so the lookup
-            # below cannot come back short.
-            candidate = await self._selection.select(address, items)
-            products = await self._products.get_by_ids(
-                {item.product_id for item in items}
-            )
-
-            currencies = frozenset(p.currency for p in products.values())
-            if len(currencies) > 1:
-                # The database does not enforce one currency per order, so
-                # summing across them would be silently meaningless.
-                raise MixedCurrencyBasket(currencies)
-            currency = next(iter(currencies))
-
-            # Totals come from the snapshot values, never a live products read,
-            # so a price change mid-request cannot make the total disagree with
-            # the lines.
-            total_minor = sum(
-                products[item.product_id].unit_price_minor * item.quantity
-                for item in items
-            )
-
-            order = await self._orders.create(
+            order = await self.create_in_transaction(
                 customer_id=customer_id,
-                warehouse_id=candidate.id,
                 address=address,
-                shipping_point=shipping_point,
-                currency=currency,
-                total_minor=total_minor,
-            )
-            await self._orders.add_items(
-                order_id=order.id,
-                products=products,
-                items=[(i.product_id, i.quantity) for i in items],
-            )
-            await self._reservations.reserve_stock(
-                order_id=order.id,
-                warehouse_id=candidate.id,
                 items=items,
+                shipping_point=shipping_point,
             )
-            await self._orders.transition(
-                order_id=order.id,
-                from_status=OrderStatus.pending,
-                to_status=OrderStatus.reserved,
-                reason="stock reserved",
-            )
+        return order
+
+    async def create_in_transaction(
+        self,
+        *,
+        customer_id: UUID,
+        address: PostalAddress,
+        items: Sequence[RequestedItem],
+        shipping_point: WKBElement,
+    ) -> Order:
+        """The same work, assuming the CALLER already opened a transaction.
+
+        Extracted so the phase-5 checkout saga can put the idempotency-key
+        insert in the same transaction as the order and the reservation, which
+        is what makes the key and the order atomic with each other. The logic is
+        identical to create(); only who owns the transaction differs.
+        """
+        # Selection also validates that every product exists, so the lookup
+        # below cannot come back short.
+        candidate = await self._selection.select(address, items)
+        products = await self._products.get_by_ids(
+            {item.product_id for item in items}
+        )
+
+        currencies = frozenset(p.currency for p in products.values())
+        if len(currencies) > 1:
+            # The database does not enforce one currency per order, so
+            # summing across them would be silently meaningless.
+            raise MixedCurrencyBasket(currencies)
+        currency = next(iter(currencies))
+
+        # Totals come from the snapshot values, never a live products read,
+        # so a price change mid-request cannot make the total disagree with
+        # the lines.
+        total_minor = sum(
+            products[item.product_id].unit_price_minor * item.quantity
+            for item in items
+        )
+
+        order = await self._orders.create(
+            customer_id=customer_id,
+            warehouse_id=candidate.id,
+            address=address,
+            shipping_point=shipping_point,
+            currency=currency,
+            total_minor=total_minor,
+        )
+        await self._orders.add_items(
+            order_id=order.id,
+            products=products,
+            items=[(i.product_id, i.quantity) for i in items],
+        )
+        await self._reservations.reserve_stock(
+            order_id=order.id,
+            warehouse_id=candidate.id,
+            items=items,
+        )
+        await self._orders.transition(
+            order_id=order.id,
+            from_status=OrderStatus.pending,
+            to_status=OrderStatus.reserved,
+            reason="stock reserved",
+        )
 
         logger.info(
             "order %s reserved at warehouse %s: %d line(s), %d %s",
