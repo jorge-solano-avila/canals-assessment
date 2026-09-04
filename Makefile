@@ -5,7 +5,7 @@ COMPOSE ?= docker compose
 -include .env
 export
 
-.PHONY: up down migrate seed psql logs lock revision reset test test-up sweep
+.PHONY: up down migrate seed psql logs lock revision reset test test-up sweep run outbox
 
 up:                ## Build and start db, redis and app
 	$(COMPOSE) up -d --build
@@ -34,6 +34,12 @@ revision:          ## Autogenerate a migration: make revision m="add thing"
 
 reset:             ## DESTRUCTIVE: stop and delete the pgdata volume
 	$(COMPOSE) down -v
+
+run:               ## Serve the API (host port = APP_HOST_PORT in .env)
+	$(COMPOSE) exec app uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+outbox:            ## Publish pending outbox events once
+	$(COMPOSE) exec -T app python -m app.jobs.publish_outbox
 
 sweep:             ## Release expired stock reservations (run on demand or from cron)
 	$(COMPOSE) exec -T app python -m app.jobs.sweep_reservations
