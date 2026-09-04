@@ -98,3 +98,60 @@ class MixedCurrencyBasket(DomainError):
         self.currencies = currencies
         listed = ", ".join(sorted(currencies))
         super().__init__(f"basket spans multiple currencies: {listed}")
+
+
+class IdempotencyKeyRequired(DomainError):
+    """The Idempotency-Key header was absent.
+
+    Required rather than optional: this endpoint moves money, and a client that
+    cannot retry safely will retry unsafely.
+    """
+
+    def __init__(self) -> None:
+        super().__init__("the Idempotency-Key header is required")
+
+
+class IdempotencyKeyReuse(DomainError):
+    """The same key arrived with a different request body.
+
+    Checked BEFORE the stored state, because reusing a key for a different
+    request is wrong regardless of how the first one turned out.
+    """
+
+    def __init__(self, key: str) -> None:
+        self.key = key
+        super().__init__(f"idempotency key {key!r} was already used for a different request")
+
+
+class IdempotencyInProgress(DomainError):
+    """Another request owns this key right now, or owned it and died.
+
+    Not auto-released on staleness: if the previous attempt reached the payment
+    provider, its outcome is unknown, and letting a second attempt through could
+    charge the customer twice. Reconciliation resolves it.
+    """
+
+    def __init__(self, key: str) -> None:
+        self.key = key
+        super().__init__(f"a request with idempotency key {key!r} is already in progress")
+
+
+class PaymentDeclined(DomainError):
+    """The provider gave a definite no. The only outcome that compensates."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(f"payment declined: {reason}")
+
+
+class PaymentUnresolved(DomainError):
+    """The provider did not tell us whether the money moved.
+
+    NOT a failure. Stock stays held and the order stays reserved, because
+    releasing on an unknown outcome is how a paid-for order loses its stock.
+    Reconciliation asks the provider later.
+    """
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(f"payment outcome unknown: {reason}")

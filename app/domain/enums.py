@@ -33,3 +33,16 @@ class ReservationStatus(str, enum.Enum):
     committed = "committed"
     released = "released"
     expired = "expired"
+
+
+class IdempotencyStatus(str, enum.Enum):
+    """Restored in migration 0003.
+
+    The phase-2 derived model (response_status IS NULL) could express settled vs
+    unsettled, but not "settled as a failure that may be retried" apart from
+    "settled, replay this forever". `failed -> retry allowed` needs a stored state.
+    """
+
+    in_progress = "in_progress"
+    completed = "completed"
+    failed = "failed"
