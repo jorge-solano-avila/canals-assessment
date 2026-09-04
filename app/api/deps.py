@@ -26,11 +26,16 @@ from fastapi import Depends
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.event_log import LoggingEventPublisher
 from app.adapters.geocoding_cache import CachedGeocoder
 from app.adapters.geocoding_mock import MockGeocoder
+from app.adapters.payment_mock import MockPaymentProvider
 from app.config import settings
 from app.db.session import Session
+from app.ports.events import EventPublisher
 from app.ports.geocoding import GeocodingProvider
+from app.ports.payment import PaymentProvider
+from app.services.order_checkout import OrderCheckoutService
 from app.services.order_creation import OrderCreationService
 from app.services.warehouse_selection import WarehouseSelectionService
 
@@ -103,3 +108,42 @@ async def get_order_creation_service(
 OrderCreationDep = Annotated[
     OrderCreationService, Depends(get_order_creation_service)
 ]
+
+
+# Module-level singletons: the mocks are stateless apart from their recording
+# lists, and a per-request instance would forget what it had charged — which is
+# exactly what the "charged exactly once" test needs to observe.
+_payment_provider = MockPaymentProvider()
+_event_publisher = LoggingEventPublisher()
+
+
+async def get_payment_provider() -> PaymentProvider:
+    """The only place the concrete provider is named.
+
+    Swapping in a real gateway is a change to this function and nothing else;
+    services depend on the port.
+    """
+    return _payment_provider
+
+
+PaymentDep = Annotated[PaymentProvider, Depends(get_payment_provider)]
+
+
+async def get_event_publisher() -> EventPublisher:
+    return _event_publisher
+
+
+PublisherDep = Annotated[EventPublisher, Depends(get_event_publisher)]
+
+
+async def get_checkout_service(
+    session: SessionDep,
+    geocoder: GeocoderDep,
+    payments: PaymentDep,
+) -> OrderCheckoutService:
+    return OrderCheckoutService(
+        session=session, geocoder=geocoder, payments=payments
+    )
+
+
+CheckoutDep = Annotated[OrderCheckoutService, Depends(get_checkout_service)]
